@@ -1,16 +1,15 @@
-# image_gridder
+# Image Gridder
 
-A new Flutter project.
+A mobile app built with Flutter that allows artists to overlay customizable grid lines on images.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- Pick an image from your device
+- Add a grid overlay with custom:
+  - Number of rows and columns
+  - Line boldness (stroke width)
+  - Opacity
+  - Color (from swatches or full spectrum)
+- Preview before saving
+- Export the image with the grid overlay to your photo gallery
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
