@@ -43,3 +43,23 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Flutter/Dart/Pub related
+.dart_tool/
+.packages
+.pub/
+build/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+*.lock
+.idea/
+android/.gradle/
+android/captures/
+*.iml
+
+# VS Code
+.vscode/
+
+# Mac OS
+.DS_Store
+

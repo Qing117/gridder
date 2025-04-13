@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:gallery_saver/gallery_saver.dart';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
-import 'dart:typed_data';
-
+import 'package:path_provider/path_provider.dart';
+import 'package:gallery_saver/gallery_saver.dart';
+import 'grid_settings_page.dart';
 
 void main() {
   runApp(const ImageGridderApp());
@@ -16,15 +15,15 @@ void main() {
 class ImageGridderApp extends StatelessWidget {
   const ImageGridderApp({super.key});
 
-    @override
-    Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Image Gridder',
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: Colors.teal,
       ),
-      home: GridOverlayScreen(),
+      home: const GridOverlayScreen(),
     );
   }
 }
@@ -33,11 +32,12 @@ class GridOverlayScreen extends StatefulWidget {
   const GridOverlayScreen({super.key});
 
   @override
-  GridOverlayScreenState createState() => GridOverlayScreenState();
+  State<GridOverlayScreen> createState() => _GridOverlayScreenState();
 }
 
-class GridOverlayScreenState extends State<GridOverlayScreen> {
+class _GridOverlayScreenState extends State<GridOverlayScreen> {
   File? _selectedImage;
+  ui.Image? _uiImage;
 
   int _numRows = 4;
   int _numCols = 4;
@@ -51,7 +51,7 @@ class GridOverlayScreenState extends State<GridOverlayScreen> {
   double _gridOpacity = 0.6;
   double _gridStrokeWidth = 1.5;
 
-@override
+  @override
   void initState() {
     super.initState();
     _rowController.text = _numRows.toString();
@@ -66,44 +66,49 @@ class GridOverlayScreenState extends State<GridOverlayScreen> {
   }
 
   Future<void> _pickImage() async {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-        });
-      }
+    if (pickedFile != null) {
+      final imageFile = File(pickedFile.path);
+      final data = await pickedFile.readAsBytes();
+      final codec = await ui.instantiateImageCodec(data);
+      final frame = await codec.getNextFrame();
+
+      setState(() {
+        _selectedImage = imageFile;
+        _uiImage = frame.image;
+      });
     }
+  }
 
   Future<void> _exportImage(BuildContext context, GlobalKey globalKey) async {
-      try {
-        RenderRepaintBoundary boundary =
-            globalKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-        ui.Image image = await boundary.toImage();
-        ByteData? byteData =
-            await image.toByteData(format: ui.ImageByteFormat.png);
-        if (byteData != null) {
-          Uint8List pngBytes = byteData.buffer.asUint8List();
-          final directory = await getApplicationDocumentsDirectory();
-          final filePath = '${directory.path}/grid_image.png';
-          final file = File(filePath);
-          await file.writeAsBytes(pngBytes);
-  
-          // Save to gallery
-          await GallerySaver.saveImage(file.path);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Image exported successfully!")),
-          );
-        }
-      } catch (e) {
+    try {
+      RenderRepaintBoundary boundary =
+          globalKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage();
+      ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData != null) {
+        Uint8List pngBytes = byteData.buffer.asUint8List();
+        final directory = await getApplicationDocumentsDirectory();
+        final filePath = '${directory.path}/grid_image.png';
+        final file = File(filePath);
+        await file.writeAsBytes(pngBytes);
+
+        await GallerySaver.saveImage(file.path);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to export image: $e")),
+          const SnackBar(content: Text("Image exported successfully!")),
         );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to export image: $e")),
+      );
     }
+  }
 
-void _applyGridSettings() {
+  void _applyGridSettings() {
     final int? rows = int.tryParse(_rowController.text);
     final int? cols = int.tryParse(_colController.text);
 
@@ -119,7 +124,7 @@ void _applyGridSettings() {
     }
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Image Gridder')),
@@ -127,176 +132,82 @@ void _applyGridSettings() {
         children: [
           Expanded(
             child: Center(
-              child:RepaintBoundary(
-                key: _globalKey,
-                child: Stack(
-                  fit: StackFit.expand, 
-                  children: [
-                    if (_selectedImage != null)
-                      Image.file(
-                        _selectedImage!,
-                        fit: BoxFit.cover,
-                      )
-                    else
-                      Image.asset(
-                        'assets/sample.jpeg',
-                        fit: BoxFit.cover,
+              child: _uiImage != null
+                  ? FittedBox(
+                      fit: BoxFit.contain,
+                      child: RepaintBoundary(
+                        key: _globalKey,
+                        child: SizedBox(
+                          width: _uiImage!.width.toDouble(),
+                          height: _uiImage!.height.toDouble(),
+                          child: Stack(
+                            children: [
+                              Image.file(
+                                _selectedImage!,
+                                width: _uiImage!.width.toDouble(),
+                                height: _uiImage!.height.toDouble(),
+                                fit: BoxFit.fill,
+                              ),
+                              CustomPaint(
+                                size: Size(
+                                  _uiImage!.width.toDouble(),
+                                  _uiImage!.height.toDouble(),
+                                ),
+                                painter: GridPainter(
+                                  rows: _numRows,
+                                  columns: _numCols,
+                                  color: _gridColor,
+                                  opacity: _gridOpacity,
+                                  strokeWidth: _gridStrokeWidth,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    CustomPaint(
-                      painter: GridPainter(
-                        rows: _numRows,
-                        columns: _numCols,
-                        color: _gridColor,
-                        opacity: _gridOpacity,
-                        strokeWidth: _gridStrokeWidth,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                    )
+                  : const Text("Please select an image."),
             ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Number of Columns'),
-                  TextField(
-                    controller: _colController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Enter number of columns',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: () => _exportImage(context, _globalKey),
-                      child: const Text('Export Image'),
-                    ),
-                  ),
-                  const Text('Number of Rows'),
-                  TextField(
-                    controller: _rowController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Enter number of rows',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: _applyGridSettings,
-                      child: const Text('Done'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: _pickImage,
-                      child: const Text('Pick an Image from Gallery'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('Grid Line Boldness'),
-                  Slider(
-                    value: _gridStrokeWidth,
-                    min: 0.5,
-                    max: 5.0,
-                    divisions: 9,
-                    label: _gridStrokeWidth.toStringAsFixed(1),
-                    onChanged: (value) {
-                      setState(() {
-                        _gridStrokeWidth = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('Grid Line Opacity'),
-                  Slider(
-                    value: _gridOpacity,
-                    min: 0.1,
-                    max: 1.0,
-                    divisions: 9,
-                    label: _gridOpacity.toStringAsFixed(1),
-                    onChanged: (value) {
-                      setState(() {
-                        _gridOpacity = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('Grid Line Color'),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                              title: const Text("Pick Grid Color"),
-                              content: SingleChildScrollView(
-                                child: Column(
-                                  children: [
-                                    BlockPicker(
-                                      pickerColor: _gridColor,
-                                      availableColors: const [
-                                        Colors.yellow,
-                                        Colors.orange,
-                                        Colors.red,
-                                        Colors.pink,
-                                        Colors.purple,
-                                        Colors.blue,
-                                        Colors.cyan,
-                                        Colors.green,
-                                        Colors.brown,
-                                        Colors.grey,
-                                        Colors.black,
-                                        Colors.white,
-                                        ],
-                                      onColorChanged: (color) {
-                                        setState(() {
-                                          _gridColor = color;
-                                        });
-                                      },
-                                    ),
-                                    const SizedBox(height: 12),
-                                    const Text('Or pick a custom color'),
-                                    SlidePicker(
-                                      pickerColor: _gridColor,
-                                      onColorChanged: (color) {
-                                        setState(() {
-                                          _gridColor = color;
-                                        });
-                                      },
-                                      enableAlpha: false,
-                                      labelTypes: const [],
-                                      showIndicator: true,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.of(context).pop(),
-                                  child: const Text('Close'),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                      child: const Text("Choose Color"),
-                    ),
-                  ),
-                ],
-              ),
+            child: Column(
+              children: [
+                ElevatedButton(
+                  onPressed: _pickImage,
+                  child: const Text('Pick an Image from Gallery'),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => _exportImage(context, _globalKey),
+                  child: const Text('Export Image'),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GridSettingsPage(
+                          rowController: _rowController,
+                          colController: _colController,
+                          strokeWidth: _gridStrokeWidth,
+                          opacity: _gridOpacity,
+                          gridColor: _gridColor,
+                          onColorChanged: (color) =>
+                              setState(() => _gridColor = color),
+                          onOpacityChanged: (val) =>
+                              setState(() => _gridOpacity = val),
+                          onStrokeChanged: (val) =>
+                              setState(() => _gridStrokeWidth = val),
+                          onApply: _applyGridSettings,
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('Go to Grid Settings'),
+                ),
+              ],
             ),
           ),
         ],
@@ -339,7 +250,8 @@ class GridPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
-    @override
+
+  @override
   bool shouldRepaint(covariant GridPainter oldDelegate) {
     return oldDelegate.rows != rows ||
         oldDelegate.columns != columns ||
