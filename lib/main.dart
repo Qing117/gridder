@@ -48,8 +48,8 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
   final GlobalKey _globalKey = GlobalKey();
 
   Color _gridColor = Colors.yellow;
-  double _gridOpacity = 0.6;
-  double _gridStrokeWidth = 1.5;
+  double _gridOpacity = 1.0;
+  double _gridStrokeWidth = 15.0;
 
   @override
   void initState() {
