@@ -133,39 +133,42 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
           Expanded(
             child: Center(
               child: _uiImage != null
-                  ? FittedBox(
-                      fit: BoxFit.contain,
-                      child: RepaintBoundary(
-                        key: _globalKey,
-                        child: SizedBox(
-                          width: _uiImage!.width.toDouble(),
-                          height: _uiImage!.height.toDouble(),
-                          child: Stack(
-                            children: [
-                              Image.file(
-                                _selectedImage!,
-                                width: _uiImage!.width.toDouble(),
-                                height: _uiImage!.height.toDouble(),
-                                fit: BoxFit.fill,
+                  ? RepaintBoundary(
+                    key: _globalKey,
+                    child: InteractiveViewer(
+                      panEnabled: true,
+                      boundaryMargin: const EdgeInsets.all(20),
+                      minScale: 1.0,
+                      maxScale: 5.0,
+                      child: SizedBox(
+                        width: _uiImage!.width.toDouble(),
+                        height: _uiImage!.height.toDouble(),
+                        child: Stack(
+                          children: [
+                            Image.file(
+                              _selectedImage!,
+                              width: _uiImage!.width.toDouble(),
+                              height: _uiImage!.height.toDouble(),
+                              fit: BoxFit.fill,
+                            ),
+                            CustomPaint(
+                              size: Size(
+                                _uiImage!.width.toDouble(),
+                                _uiImage!.height.toDouble(),
                               ),
-                              CustomPaint(
-                                size: Size(
-                                  _uiImage!.width.toDouble(),
-                                  _uiImage!.height.toDouble(),
-                                ),
-                                painter: GridPainter(
-                                  rows: _numRows,
-                                  columns: _numCols,
-                                  color: _gridColor,
-                                  opacity: _gridOpacity,
-                                  strokeWidth: _gridStrokeWidth,
-                                ),
+                              painter: GridPainter(
+                                rows: _numRows,
+                                columns: _numCols,
+                                color: _gridColor,
+                                opacity: _gridOpacity,
+                                strokeWidth: _gridStrokeWidth,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                    )
+                    ),
+                  )
                   : const Text("Please select an image."),
             ),
           ),
