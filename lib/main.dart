@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:gallery_saver/gallery_saver.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'grid_settings_page.dart';
 
 void main() {
@@ -38,6 +39,7 @@ class GridOverlayScreen extends StatefulWidget {
 class _GridOverlayScreenState extends State<GridOverlayScreen> {
   File? _selectedImage;
   ui.Image? _uiImage;
+  String? _originalImagePath;
 
   int _numRows = 4;
   int _numCols = 4;
@@ -49,7 +51,7 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
 
   Color _gridColor = Colors.yellow;
   double _gridOpacity = 1.0;
-  double _gridStrokeWidth = 15.0;
+  double _gridStrokeWidth = 1.0;
 
   @override
   void initState() {
@@ -70,8 +72,80 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
-      final imageFile = File(pickedFile.path);
-      final data = await pickedFile.readAsBytes();
+      _originalImagePath = pickedFile.path;
+
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: pickedFile.path,
+        aspectRatioPresets: [
+          CropAspectRatioPreset.original,
+          CropAspectRatioPreset.square,
+          CropAspectRatioPreset.ratio3x2,
+          CropAspectRatioPreset.ratio4x3,
+          CropAspectRatioPreset.ratio16x9,
+          CropAspectRatioPreset.ratio5x4,
+          CropAspectRatioPreset.ratio7x5,
+          CropAspectRatioPreset.ratio5x3,
+        ],
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Image',
+            toolbarColor: Colors.teal,
+            toolbarWidgetColor: Colors.white,
+            lockAspectRatio: false,
+          ),
+          IOSUiSettings(
+            title: 'Crop Image',
+            aspectRatioLockEnabled: false,
+          ),
+        ],
+      );
+
+      if (croppedFile != null) {
+        final imageFile = File(croppedFile.path);
+        final data = await imageFile.readAsBytes();
+        final codec = await ui.instantiateImageCodec(data);
+        final frame = await codec.getNextFrame();
+
+        setState(() {
+          _selectedImage = imageFile;
+          _uiImage = frame.image;
+        });
+      }
+    }
+  }
+
+  Future<void> _recropImage() async {
+    if (_originalImagePath == null) return;
+
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: _originalImagePath!,
+      aspectRatioPresets: [
+        CropAspectRatioPreset.original,
+        CropAspectRatioPreset.ratio3x2,
+        CropAspectRatioPreset.square,
+        CropAspectRatioPreset.ratio4x3,
+        CropAspectRatioPreset.ratio16x9,
+        CropAspectRatioPreset.ratio5x4,
+        CropAspectRatioPreset.ratio7x5,
+        CropAspectRatioPreset.ratio5x3,
+      ],
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Again',
+          toolbarColor: Colors.teal,
+          toolbarWidgetColor: Colors.white,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Again',
+          aspectRatioLockEnabled: false,
+        ),
+      ],
+    );
+
+    if (croppedFile != null) {
+      final imageFile = File(croppedFile.path);
+      final data = await imageFile.readAsBytes();
       final codec = await ui.instantiateImageCodec(data);
       final frame = await codec.getNextFrame();
 
@@ -91,15 +165,21 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
           await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData != null) {
         Uint8List pngBytes = byteData.buffer.asUint8List();
-        final directory = await getApplicationDocumentsDirectory();
-        final filePath = '${directory.path}/grid_image.png';
+
+        final tempDir = await getTemporaryDirectory();
+        final filePath = '${tempDir.path}/grid_image_${DateTime.now().millisecondsSinceEpoch}.png';
         final file = File(filePath);
         await file.writeAsBytes(pngBytes);
 
-        await GallerySaver.saveImage(file.path);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Image exported successfully!")),
-        );
+        final saved = await GallerySaver.saveImage(file.path);
+
+        if (saved == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Image saved to Photos")),
+          );
+        } else {
+          throw Exception('Image not saved');
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -134,41 +214,55 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
             child: Center(
               child: _uiImage != null
                   ? RepaintBoundary(
-                    key: _globalKey,
-                    child: InteractiveViewer(
-                      panEnabled: true,
-                      boundaryMargin: const EdgeInsets.all(20),
-                      minScale: 1.0,
-                      maxScale: 5.0,
-                      child: SizedBox(
-                        width: _uiImage!.width.toDouble(),
-                        height: _uiImage!.height.toDouble(),
-                        child: Stack(
-                          children: [
-                            Image.file(
-                              _selectedImage!,
-                              width: _uiImage!.width.toDouble(),
-                              height: _uiImage!.height.toDouble(),
-                              fit: BoxFit.fill,
-                            ),
-                            CustomPaint(
-                              size: Size(
-                                _uiImage!.width.toDouble(),
-                                _uiImage!.height.toDouble(),
+                      key: _globalKey,
+                      child: InteractiveViewer(
+                        panEnabled: true,
+                        minScale: 1.0,
+                        maxScale: 5.0,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final imgAspect = _uiImage!.width / _uiImage!.height;
+                            final boxAspect = constraints.maxWidth / constraints.maxHeight;
+
+                            double renderWidth, renderHeight;
+                            if (boxAspect > imgAspect) {
+                              renderHeight = constraints.maxHeight;
+                              renderWidth = renderHeight * imgAspect;
+                            } else {
+                              renderWidth = constraints.maxWidth;
+                              renderHeight = renderWidth / imgAspect;
+                            }
+
+                            return Center(
+                              child: SizedBox(
+                                width: renderWidth,
+                                height: renderHeight,
+                                child: Stack(
+                                  children: [
+                                    Image.file(
+                                      _selectedImage!,
+                                      width: renderWidth,
+                                      height: renderHeight,
+                                      fit: BoxFit.fill,
+                                    ),
+                                    CustomPaint(
+                                      size: Size(renderWidth, renderHeight),
+                                      painter: GridPainter(
+                                        rows: _numRows,
+                                        columns: _numCols,
+                                        color: _gridColor,
+                                        opacity: _gridOpacity,
+                                        strokeWidth: _gridStrokeWidth,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              painter: GridPainter(
-                                rows: _numRows,
-                                columns: _numCols,
-                                color: _gridColor,
-                                opacity: _gridOpacity,
-                                strokeWidth: _gridStrokeWidth,
-                              ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
                       ),
-                    ),
-                  )
+                    )
                   : const Text("Please select an image."),
             ),
           ),
@@ -179,6 +273,11 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
                 ElevatedButton(
                   onPressed: _pickImage,
                   child: const Text('Pick an Image from Gallery'),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: _recropImage,
+                  child: const Text('Crop Again'),
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(
