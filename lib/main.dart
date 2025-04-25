@@ -121,8 +121,8 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
       sourcePath: _originalImagePath!,
       aspectRatioPresets: [
         CropAspectRatioPreset.original,
-        CropAspectRatioPreset.ratio3x2,
         CropAspectRatioPreset.square,
+        CropAspectRatioPreset.ratio3x2,
         CropAspectRatioPreset.ratio4x3,
         CropAspectRatioPreset.ratio16x9,
         CropAspectRatioPreset.ratio5x4,
@@ -160,9 +160,10 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
     try {
       RenderRepaintBoundary boundary =
           globalKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage();
-      ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      // Higher pixelRatio = higher resolution!
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
       if (byteData != null) {
         Uint8List pngBytes = byteData.buffer.asUint8List();
 
@@ -335,6 +336,8 @@ class GridPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (strokeWidth == 0.0) return;
+
     final paint = Paint()
       ..color = color.withAlpha((opacity * 255).round())
       ..strokeWidth = strokeWidth;
@@ -346,7 +349,6 @@ class GridPainter extends CustomPainter {
       final x = i * colWidth;
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
-
     for (int i = 1; i < rows; i++) {
       final y = i * rowHeight;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);

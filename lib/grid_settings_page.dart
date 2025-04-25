@@ -75,7 +75,7 @@ class _GridSettingsPageState extends State<GridSettingsPage> {
               const Text('Grid Line Boldness'),
               Slider(
                 value: _localStrokeWidth,
-                min: 1.0,
+                min: 0.0,
                 max: 10.0,
                 divisions: 20,
                 label: _localStrokeWidth.toStringAsFixed(1),
