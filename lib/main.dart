@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -122,8 +120,8 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
       sourcePath: _originalImagePath!,
       aspectRatioPresets: [
         CropAspectRatioPreset.original,
-        CropAspectRatioPreset.ratio3x2,
         CropAspectRatioPreset.square,
+        CropAspectRatioPreset.ratio3x2,
         CropAspectRatioPreset.ratio4x3,
         CropAspectRatioPreset.ratio16x9,
         CropAspectRatioPreset.ratio5x4,
@@ -188,14 +186,17 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
         _gridColor.blue,
       );
 
+      double exportedStrokeWidth = (_gridStrokeWidth / _uiImage!.width) * width;
+      exportedStrokeWidth *= 7.0; // Boost for visual consistency
+
       for (int i = 1; i < _numCols; i++) {
         final x = (i * colWidth).toInt();
-        img.drawLine(originalImage, x1: x, y1: 0, x2: x, y2: height, color: gridColor);
+        img.drawLine(originalImage, x1: x, y1: 0, x2: x, y2: height, color: gridColor, thickness: exportedStrokeWidth.round());
       }
 
       for (int i = 1; i < _numRows; i++) {
         final y = (i * rowHeight).toInt();
-        img.drawLine(originalImage, x1: 0, y1: y, x2: width, y2: y, color: gridColor);
+        img.drawLine(originalImage, x1: 0, y1: y, x2: width, y2: y, color: gridColor, thickness: exportedStrokeWidth.round());
       }
 
       final tempDir = await getTemporaryDirectory();
@@ -327,12 +328,9 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
                           strokeWidth: _gridStrokeWidth,
                           opacity: _gridOpacity,
                           gridColor: _gridColor,
-                          onColorChanged: (color) =>
-                              setState(() => _gridColor = color),
-                          onOpacityChanged: (val) =>
-                              setState(() => _gridOpacity = val),
-                          onStrokeChanged: (val) =>
-                              setState(() => _gridStrokeWidth = val),
+                          onColorChanged: (color) => setState(() => _gridColor = color),
+                          onOpacityChanged: (val) => setState(() => _gridOpacity = val),
+                          onStrokeChanged: (val) => setState(() => _gridStrokeWidth = val),
                           onApply: _applyGridSettings,
                         ),
                       ),
@@ -378,7 +376,6 @@ class GridPainter extends CustomPainter {
       final x = i * colWidth;
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
-
     for (int i = 1; i < rows; i++) {
       final y = i * rowHeight;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
