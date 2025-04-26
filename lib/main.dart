@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:image/image.dart' as img;
 import 'grid_settings_page.dart';
 
 void main() {
@@ -121,8 +122,8 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
       sourcePath: _originalImagePath!,
       aspectRatioPresets: [
         CropAspectRatioPreset.original,
-        CropAspectRatioPreset.square,
         CropAspectRatioPreset.ratio3x2,
+        CropAspectRatioPreset.square,
         CropAspectRatioPreset.ratio4x3,
         CropAspectRatioPreset.ratio16x9,
         CropAspectRatioPreset.ratio5x4,
@@ -158,29 +159,58 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
 
   Future<void> _exportImage(BuildContext context, GlobalKey globalKey) async {
     try {
-      RenderRepaintBoundary boundary =
-          globalKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      // Higher pixelRatio = higher resolution!
-      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (_selectedImage == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No image to export")),
+        );
+        return;
+      }
 
-      if (byteData != null) {
-        Uint8List pngBytes = byteData.buffer.asUint8List();
+      final originalBytes = await _selectedImage!.readAsBytes();
+      img.Image? originalImage = img.decodeImage(originalBytes);
 
-        final tempDir = await getTemporaryDirectory();
-        final filePath = '${tempDir.path}/grid_image_${DateTime.now().millisecondsSinceEpoch}.png';
-        final file = File(filePath);
-        await file.writeAsBytes(pngBytes);
+      if (originalImage == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to load image")),
+        );
+        return;
+      }
 
-        final saved = await GallerySaver.saveImage(file.path);
+      final width = originalImage.width;
+      final height = originalImage.height;
 
-        if (saved == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Image saved to Photos")),
-          );
-        } else {
-          throw Exception('Image not saved');
-        }
+      final rowHeight = height / _numRows;
+      final colWidth = width / _numCols;
+
+      final gridColor = img.ColorRgb8(
+        _gridColor.red,
+        _gridColor.green,
+        _gridColor.blue,
+      );
+
+      for (int i = 1; i < _numCols; i++) {
+        final x = (i * colWidth).toInt();
+        img.drawLine(originalImage, x1: x, y1: 0, x2: x, y2: height, color: gridColor);
+      }
+
+      for (int i = 1; i < _numRows; i++) {
+        final y = (i * rowHeight).toInt();
+        img.drawLine(originalImage, x1: 0, y1: y, x2: width, y2: y, color: gridColor);
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final filePath = '${tempDir.path}/grid_image_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File(filePath);
+      await file.writeAsBytes(img.encodePng(originalImage));
+
+      final saved = await GallerySaver.saveImage(file.path);
+
+      if (saved == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Image saved to Photos")),
+        );
+      } else {
+        throw Exception('Image not saved');
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -337,9 +367,8 @@ class GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (strokeWidth == 0.0) return;
-
     final paint = Paint()
-      ..color = color.withAlpha((opacity * 255).round())
+      ..color = color.withOpacity(opacity)
       ..strokeWidth = strokeWidth;
 
     final rowHeight = size.height / rows;
@@ -349,6 +378,7 @@ class GridPainter extends CustomPainter {
       final x = i * colWidth;
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
+
     for (int i = 1; i < rows; i++) {
       final y = i * rowHeight;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
