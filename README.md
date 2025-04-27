@@ -1,4 +1,4 @@
-# Image Gridder
+# Gridder
 
 A mobile app built with Flutter that allows artists to overlay customizable grid lines on images.
 
