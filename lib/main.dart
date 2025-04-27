@@ -9,16 +9,16 @@ import 'package:image/image.dart' as img;
 import 'grid_settings_page.dart';
 
 void main() {
-  runApp(const ImageGridderApp());
+  runApp(const GridderApp());
 }
 
-class ImageGridderApp extends StatelessWidget {
-  const ImageGridderApp({super.key});
+class GridderApp extends StatelessWidget {
+  const GridderApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Image Gridder',
+      title: 'Gridder',
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: Colors.teal,
@@ -239,7 +239,7 @@ class _GridOverlayScreenState extends State<GridOverlayScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Image Gridder')),
+      appBar: AppBar(title: const Text('Gridder')),
       body: Column(
         children: [
           Expanded(
