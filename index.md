@@ -4,6 +4,6 @@
 
 All image processing occurs locally on your device.
 
-We do not track user behavior or use analytics.
+I do not track user behavior or use analytics.
 
-If you have questions, please contact the developer at [your email or GitHub profile link].
+If you have questions, please contact the developer at yanqing117@gmail.com.
