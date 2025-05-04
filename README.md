@@ -13,7 +13,7 @@ A free iOS app built with Flutter and love that allows artists to add customizab
 - Preview before saving
 - Export the image with the grid overlay to your photo gallery
 
-## Gridder is live on AppStore now!!! May 4th, 2025
+## Gridder is live on App Store now!!! May 4th, 2025
 - This project began as a side project and first iOS app — now it's live and helping others create!
 - Thank you for checking it out!
 
