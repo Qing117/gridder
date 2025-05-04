@@ -9,7 +9,7 @@ A free iOS app built with Flutter and love that allows artists to add customizab
   - Number of rows and columns
   - Line boldness (stroke width)
   - Opacity
-  - Color (from swatches or full spectrum)
+  - Color 
 - Preview before saving
 - Export the image with the grid overlay to your photo gallery
 
