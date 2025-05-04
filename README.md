@@ -13,3 +13,4 @@ A mobile app built with Flutter that allows artists to overlay customizable grid
 - Preview before saving
 - Export the image with the grid overlay to your photo gallery
 
+Contact the developer at: qingyan117@gmail.com
